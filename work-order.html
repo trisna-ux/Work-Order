@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Papan Work Order</title>
+<style>
+:root{--bg:#f4efe6;--ink:#1f2733;--mut:#7a7466;--navy:#1b365d;--line:#e3dccd;--c1:#8a94a6;--c2:#e08a1e;--c3:#2f8f5b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Segoe UI",system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:20px 24px 8px}
+h1{font:700 28px Georgia,serif;margin:0;color:var(--navy)}h1 small{display:block;font:400 13px "Segoe UI",sans-serif;color:var(--mut);margin-top:2px}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+input,select,textarea,button{font:inherit}
+input,select{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 10px;color:var(--ink);min-width:0}
+button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 14px;cursor:pointer;color:var(--ink)}
+button:hover{border-color:var(--navy)}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #3b7ddd;outline-offset:1px}
+.big{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;padding:8px 24px}
+.t{background:#fff;border-radius:14px;padding:12px 16px;border:1px solid var(--line)}
+.t b{display:block;font:700 26px Georgia,serif;color:var(--navy)}.t span{color:var(--mut);font-size:13px}
+.bar{height:6px;background:var(--line);border-radius:4px;margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--c3)}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:12px 24px 30px;align-items:start}
+.col{background:rgba(255,255,255,.55);border:1px dashed var(--line);border-radius:16px;padding:10px;min-height:200px}
+.col.over{background:#fff;border-color:var(--navy)}
+.ch{display:flex;justify-content:space-between;align-items:baseline;padding:4px 6px 10px}
+.ch b{font-size:16px}.ch em{font-style:normal;color:var(--mut);font-size:12px;margin-left:6px}
+.n{background:var(--navy);color:#fff;border-radius:20px;padding:1px 10px;font-size:13px}
+.card{background:#fff;border-radius:12px;border:1px solid var(--line);border-left:5px solid var(--cc);padding:10px 12px;margin-bottom:10px;cursor:grab}
+.card h3{margin:0 0 6px;font-size:15px}.pill{display:inline-block;border-radius:20px;padding:1px 10px;font-size:12px;font-weight:600}
+.meta{color:var(--mut);font-size:13px;margin:6px 0}.chips{display:flex;gap:6px;flex-wrap:wrap}.chips span{background:#f3efe6;border-radius:8px;padding:2px 8px;font-size:12px}
+.act{display:flex;gap:6px;margin-top:8px}.act button{padding:3px 10px;font-size:13px}.act .sp{flex:1}
+.empty{text-align:center;color:var(--mut);padding:30px 20px}.empty ol{display:inline-block;text-align:left;margin:8px 0 0}
+dialog{border:0;border-radius:16px;padding:20px;width:min(440px,94vw);box-shadow:0 10px 40px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(20,28,40,.45)}dialog h2{margin:0 0 12px;font:700 20px Georgia,serif;color:var(--navy)}
+dialog label{display:block;font-size:13px;color:var(--mut);margin-bottom:10px}dialog input,dialog select{display:block;width:100%;margin-top:3px;color:var(--ink)}
+.r3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.foot{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+.card{position:relative}.card .sel{position:absolute;top:10px;right:10px;width:18px;height:18px;accent-color:var(--navy);cursor:pointer}.card h3{padding-right:26px}
+#bar{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:var(--navy);color:#fff;border-radius:14px;padding:10px 14px;display:none;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;box-shadow:0 6px 24px rgba(0,0,0,.3);z-index:5;max-width:94vw}#bar.on{display:flex}#bar button{padding:6px 12px}
+@media(max-width:800px){.board{grid-template-columns:1fr}header,.stats,.board{padding-left:14px;padding-right:14px}}
+</style></head><body>
+<header><h1>Papan Work Order<small>Geser kartu dari Baru → Dikerjakan → Selesai</small></h1>
+<div class="tools"><select id="m" aria-label="Bulan"></select><select id="a" aria-label="Area"></select><input id="q" type="search" placeholder="Cari…" aria-label="Cari"><button data-act="go">BOQ & Job Completion →</button><button class="big" data-act="new">+ WO Baru</button></div></header>
+<section class="stats" id="stats"></section>
+<main class="board" id="board"></main>
+<div class="tools" style="padding:0 24px 24px"><button data-act="xls">Download Excel bulan ini</button><button data-act="exp">Backup data</button><button data-act="imp">Pulihkan backup</button><input type="file" id="file" accept=".json" hidden></div>
+<dialog id="dlg"><h2 id="dt">WO Baru</h2>
+<label>Pekerjaan (Work Order)<input id="f-title" placeholder="mis. Service pintu kamar 12"></label>
+<div class="r3"><label>Area<input id="f-area" list="al" placeholder="mis. Legal"></label><label>User / Peminta<input id="f-user"></label><label>Tanggal<input id="f-date" type="date"></label></div>
+<div class="r3"><label>Manpower<input id="f-mp" type="number" min="0"></label><label>Durasi (jam)<input id="f-hr" type="number" min="0" step="0.5"></label><label>Carry<input id="f-carry" type="number" min="0"></label></div>
+<label>Catatan<input id="f-note"></label><datalist id="al"></datalist>
+<div class="foot"><button data-act="cancel">Batal</button><button class="big" data-act="save">Simpan</button></div></dialog>
+<div id="bar"></div>
+<script>
+const K='wo-board-v1',$=s=>document.querySelector(s);
+let D;try{D=JSON.parse(localStorage.getItem(K))}catch(e){}D=D||{wos:[]};
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(D))}catch(e){}};
+const MO=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const today=iso(new Date()),ml=k=>MO[+k.slice(5)-1]+' '+k.slice(0,4);
+const fd=d=>d?+d.slice(8)+' '+MO[+d.slice(5,7)-1].slice(0,3)+' '+d.slice(0,4):'';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ST=[['baru','Baru','belum dikerjakan','--c1'],['proses','Dikerjakan','sedang berjalan','--c2'],['selesai','Selesai','sudah beres','--c3']];
+let M=today.slice(0,7),A='',Q='',eid=null,SEL=new Set();
+const hue=a=>{let h=0;for(const c of a||'-')h=(h*31+c.charCodeAt(0))%360;return h};
+const num=x=>+x||0;
+function view(){const ms=[...new Set([...D.wos.map(w=>w.date.slice(0,7)),today.slice(0,7)])].sort().reverse();if(!ms.includes(M))M=ms[0];
+ $('#m').innerHTML=ms.map(k=>`<option value="${k}"${k==M?' selected':''}>${ml(k)}</option>`).join('');
+ const ar=[...new Set(D.wos.map(w=>w.area).filter(Boolean))].sort();
+ $('#a').innerHTML='<option value="">Semua area</option>'+ar.map(x=>`<option${x==A?' selected':''}>${esc(x)}</option>`).join('');
+ $('#al').innerHTML=ar.map(x=>`<option value="${esc(x)}">`).join('');
+ const all=D.wos.filter(w=>w.date.slice(0,7)==M),L=all.filter(w=>(!A||w.area==A)&&(!Q||(w.title+' '+w.area+' '+w.user).toLowerCase().includes(Q)));
+ const n=s=>all.filter(w=>w.status==s).length,hrs=all.reduce((a,w)=>a+num(w.mp)*num(w.hr),0),pct=all.length?Math.round(n('selesai')/all.length*100):0;
+ $('#stats').innerHTML=`<div class="t"><b>${all.length}</b><span>Total WO ${ml(M)}</span></div><div class="t"><b>${n('proses')}</b><span>Sedang dikerjakan</span></div><div class="t"><b>${n('selesai')}</b><span>Selesai (${pct}%)</span><div class="bar"><i style="width:${pct}%"></i></div></div><div class="t"><b>${hrs}</b><span>Jam kerja (manpower × jam)</span></div>`;
+ $('#board').innerHTML=!all.length?`<div class="empty" style="grid-column:1/-1"><b>Belum ada work order di ${ml(M)}</b><br>Cara pakainya:<br><ol><li>Klik <b>+ WO Baru</b> dan isi pekerjaannya.</li><li>Saat mulai dikerjakan, geser kartu ke <b>Dikerjakan</b> (atau klik tombol →).</li><li>Kalau sudah beres, geser ke <b>Selesai</b>.</li></ol></div>`:
+ ST.map(([k,t,d,c])=>{const c2=L.filter(w=>w.status==k);return`<div class="col" data-col="${k}"><div class="ch"><span><b>${t}</b><em>${d}</em></span><span class="n">${c2.length}</span></div>${c2.map(w=>card(w,k,c)).join('')}</div>`}).join('');bar()}
+function bar(){SEL.forEach(i=>{if(!D.wos.some(w=>w.id==i))SEL.delete(i)});const b=$('#bar');b.className=SEL.size?'on':'';b.innerHTML=SEL.size?`<span>${SEL.size} WO dipilih</span><button data-act="mkboq">Buat BOQ</button><button data-act="mkjc">Buat Job Completion</button><button data-act="clr">Batal</button>`:''}
+function hand(type){const ws=D.wos.filter(w=>SEL.has(w.id));if(type=='jc'&&ws.some(w=>w.status!='selesai')&&!confirm('Ada WO yang belum Selesai. Tetap buat Job Completion?'))return;const name=prompt('Nama project (mis. Bus Stop Ash):',ws[0]?ws[0].title:'');if(name===null)return;try{localStorage.setItem('wo-handoff',JSON.stringify({type,ids:ws.map(w=>w.id),name:name.trim()}))}catch(e){alert('Browser menolak menyimpan data.');return}location.href='index.html'}
+function card(w,k,c){const i=ST.findIndex(s=>s[0]==k),h=hue(w.area);
+ return`<div class="card" draggable="true" data-id="${w.id}" style="--cc:var(${c})"><input type="checkbox" class="sel" data-id="${w.id}" aria-label="Pilih untuk BOQ atau Job Completion"${SEL.has(w.id)?' checked':''}><h3>${esc(w.title)||'(tanpa judul)'}</h3>${w.area?`<span class="pill" style="background:hsl(${h} 60% 92%);color:hsl(${h} 55% 28%)">${esc(w.area)}</span>`:''}
+ <div class="meta">${w.user?esc(w.user)+' · ':''}${fd(w.date)}${w.doneDate&&k=='selesai'?' · selesai '+fd(w.doneDate):''}</div>
+ <div class="chips">${num(w.mp)?`<span>${w.mp} orang${num(w.hr)?' × '+w.hr+' jam':''}</span>`:''}${num(w.carry)?`<span>${w.carry} carry</span>`:''}${w.note?`<span>${esc(w.note)}</span>`:''}${w.boq?'<span>BOQ dibuat ✓</span>':''}${w.jc?'<span>Job Completion ✓</span>':''}</div>
+ <div class="act">${i>0?`<button data-act="mv" data-d="-1" aria-label="Mundur">←</button>`:''}${i<2?`<button data-act="mv" data-d="1" aria-label="Maju">→</button>`:''}<span class="sp"></span><button data-act="ed">Edit</button><button data-act="del">Hapus</button></div></div>`}
+function move(id,st){const w=D.wos.find(x=>x.id==id);if(!w||w.status==st)return;w.status=st;w.doneDate=st=='selesai'?today:'';save();view()}
+function open_(id){eid=id;const w=D.wos.find(x=>x.id==id)||{date:M==today.slice(0,7)?today:M+'-01'};$('#dt').textContent=id?'Edit WO':'WO Baru';
+ for(const k of['title','area','user','date','mp','hr','carry','note'])$('#f-'+k).value=w[k]??'';$('#dlg').showModal();$('#f-title').focus()}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const id=b.closest('.card')?.dataset.id,a=b.dataset.act;
+ if(a=='new')open_(null);else if(a=='cancel')$('#dlg').close();
+ else if(a=='save'){const v=k=>$('#f-'+k).value.trim();if(!v('title')){$('#f-title').focus();return}
+  const o={title:v('title'),area:v('area'),user:v('user'),date:v('date')||today,mp:v('mp'),hr:v('hr'),carry:v('carry'),note:v('note')};
+  if(eid)Object.assign(D.wos.find(x=>x.id==eid),o);else D.wos.push({id:Math.random().toString(36).slice(2,9),status:'baru',doneDate:'',...o});
+  M=o.date.slice(0,7);save();$('#dlg').close();view()}
+ else if(a=='ed')open_(id);else if(a=='go')location.href='index.html';else if(a=='clr'){SEL.clear();view()}else if(a=='mkboq'||a=='mkjc')hand(a=='mkjc'?'jc':'boq');
+ else if(a=='del'){if(confirm('Hapus work order ini?')){D.wos=D.wos.filter(x=>x.id!=id);save();view()}}
+ else if(a=='mv'){const w=D.wos.find(x=>x.id==id);move(id,ST[ST.findIndex(s=>s[0]==w.status)+ +b.dataset.d][0])}
+ else if(a=='exp'){const l=document.createElement('a');l.href=URL.createObjectURL(new Blob([JSON.stringify(D)],{type:'application/json'}));l.download='backup-work-order.json';l.click()}
+ else if(a=='imp')$('#file').click()
+ else if(a=='xls'){const r=D.wos.filter(w=>w.date.slice(0,7)==M).sort((x,y)=>x.date.localeCompare(y.date));
+  const h='<table border="1"><tr><th>NO<th>TGL<th>WORK AREA<th>WORK ORDER<th>USER<th>CARRY<th>MANPOWER<th>DURATION TIME (HOUR)<th>STATUS<th>CATATAN</tr>'+r.map((w,i)=>`<tr><td>${i+1}<td>${fd(w.date)}<td>${esc(w.area)}<td>${esc(w.title)}<td>${esc(w.user)}<td>${w.carry}<td>${w.mp}<td>${w.hr}<td>${ST.find(s=>s[0]==w.status)[1]}<td>${esc(w.note)}</tr>`).join('')+'</table>';
+  const l=document.createElement('a');l.href=URL.createObjectURL(new Blob(['<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>'+h+'</body></html>'],{type:'application/vnd.ms-excel'}));l.download='Work Order '+ml(M)+'.xls';l.click()}});
+$('#m').onchange=e=>{M=e.target.value;view()};$('#a').onchange=e=>{A=e.target.value;view()};$('#q').oninput=e=>{Q=e.target.value.toLowerCase();view()};
+$('#file').onchange=e=>{const f=e.target.files[0];if(f)f.text().then(x=>{try{const d=JSON.parse(x);if(!Array.isArray(d.wos))throw 0;D=d;save();view()}catch(_){alert('File backup tidak valid.')}})};
+document.addEventListener('change',e=>{const t=e.target;if(t.classList&&t.classList.contains('sel')){t.checked?SEL.add(t.dataset.id):SEL.delete(t.dataset.id);bar()}});
+addEventListener('pageshow',e=>{if(e.persisted)location.reload()});addEventListener('storage',e=>{if(e.key==K){try{D=JSON.parse(e.newValue)||{wos:[]}}catch(_){}view()}});
+let drag=null;document.addEventListener('dragstart',e=>{const c=e.target.closest('.card');if(c){drag=c.dataset.id;e.dataTransfer.setData('text/plain',drag)}});
+document.addEventListener('dragover',e=>{const c=e.target.closest('.col');if(c&&drag){e.preventDefault();document.querySelectorAll('.col').forEach(x=>x.classList.toggle('over',x==c))}});
+document.addEventListener('drop',e=>{const c=e.target.closest('.col');if(c&&drag){e.preventDefault();move(drag,c.dataset.col)}drag=null;document.querySelectorAll('.col').forEach(x=>x.classList.remove('over'))});
+document.addEventListener('dragend',()=>{drag=null;document.querySelectorAll('.col').forEach(x=>x.classList.remove('over'))});
+view();
+</script></body></html>
