@@ -25,7 +25,7 @@ button:hover{border-color:var(--navy)}button:focus-visible,input:focus-visible,s
 .card{background:#fff;border-radius:12px;border:1px solid var(--line);border-left:5px solid var(--cc);padding:10px 12px;margin-bottom:10px;cursor:grab}
 .card h3{margin:0 0 6px;font-size:15px}.pill{display:inline-block;border-radius:20px;padding:1px 10px;font-size:12px;font-weight:600}
 .meta{color:var(--mut);font-size:13px;margin:6px 0}.chips{display:flex;gap:6px;flex-wrap:wrap}.chips span{background:#f3efe6;border-radius:8px;padding:2px 8px;font-size:12px}
-.act{display:flex;gap:6px;margin-top:8px}.act button{padding:3px 10px;font-size:13px}.act .sp{flex:1}
+.act{display:flex;gap:6px;margin-top:8px}.act button{padding:3px 10px;font-size:13px}.act .sp{flex:1}.act .ok{color:var(--c3);border-color:var(--c3);font-weight:600}
 .empty{text-align:center;color:var(--mut);padding:30px 20px}.empty ol{display:inline-block;text-align:left;margin:8px 0 0}
 dialog{border:0;border-radius:16px;padding:20px;width:min(440px,94vw);box-shadow:0 10px 40px rgba(0,0,0,.25)}
 dialog::backdrop{background:rgba(20,28,40,.45)}dialog h2{margin:0 0 12px;font:700 20px Georgia,serif;color:var(--navy)}
@@ -44,7 +44,7 @@ dialog label{display:block;font-size:13px;color:var(--mut);margin-bottom:10px}di
 <label>Pekerjaan (Work Order)<input id="f-title" placeholder="mis. Service pintu kamar 12"></label>
 <div class="r3"><label>Area<input id="f-area" list="al" placeholder="mis. Legal"></label><label>User / Peminta<input id="f-user"></label><label>Tanggal<input id="f-date" type="date"></label></div>
 <div class="r3"><label>Manpower<input id="f-mp" type="number" min="0"></label><label>Durasi (jam)<input id="f-hr" type="number" min="0" step="0.5"></label><label>Carry<input id="f-carry" type="number" min="0"></label></div>
-<label>Catatan<input id="f-note"></label><datalist id="al"></datalist>
+<label>Catatan<input id="f-note"></label><label>Tanggal selesai (isi kalau pekerjaan sudah beres)<input id="f-doneDate" type="date"></label><datalist id="al"></datalist>
 <div class="foot"><button data-act="cancel">Batal</button><button class="big" data-act="save">Simpan</button></div></dialog>
 <div id="bar"></div>
 <script>
@@ -76,17 +76,17 @@ function card(w,k,c){const i=ST.findIndex(s=>s[0]==k),h=hue(w.area);
  return`<div class="card" draggable="true" data-id="${w.id}" style="--cc:var(${c})"><input type="checkbox" class="sel" data-id="${w.id}" aria-label="Pilih untuk BOQ atau Job Completion"${SEL.has(w.id)?' checked':''}><h3>${esc(w.title)||'(tanpa judul)'}</h3>${w.area?`<span class="pill" style="background:hsl(${h} 60% 92%);color:hsl(${h} 55% 28%)">${esc(w.area)}</span>`:''}
  <div class="meta">${w.user?esc(w.user)+' · ':''}${fd(w.date)}${w.doneDate&&k=='selesai'?' · selesai '+fd(w.doneDate):''}</div>
  <div class="chips">${num(w.mp)?`<span>${w.mp} orang${num(w.hr)?' × '+w.hr+' jam':''}</span>`:''}${num(w.carry)?`<span>${w.carry} carry</span>`:''}${w.note?`<span>${esc(w.note)}</span>`:''}${w.boq?'<span>BOQ dibuat ✓</span>':''}${w.jc?'<span>Job Completion ✓</span>':''}</div>
- <div class="act">${i>0?`<button data-act="mv" data-d="-1" aria-label="Mundur">←</button>`:''}${i<2?`<button data-act="mv" data-d="1" aria-label="Maju">→</button>`:''}<span class="sp"></span><button data-act="ed">Edit</button><button data-act="del">Hapus</button></div></div>`}
-function move(id,st){const w=D.wos.find(x=>x.id==id);if(!w||w.status==st)return;w.status=st;w.doneDate=st=='selesai'?today:'';save();view()}
+ <div class="act">${i>0?`<button data-act="mv" data-d="-1" aria-label="Mundur">←</button>`:''}${i<2?`<button data-act="mv" data-d="1" aria-label="Maju">→</button><button class="ok" data-act="done">✓ Selesai</button>`:''}<span class="sp"></span><button data-act="ed">Edit</button><button data-act="del">Hapus</button></div></div>`}
+function move(id,st){const w=D.wos.find(x=>x.id==id);if(!w||w.status==st)return;w.status=st;w.doneDate=st=='selesai'?(w.date&&w.date<today?w.date:today):'';save();view()}
 function open_(id){eid=id;const w=D.wos.find(x=>x.id==id)||{date:M==today.slice(0,7)?today:M+'-01'};$('#dt').textContent=id?'Edit WO':'WO Baru';
- for(const k of['title','area','user','date','mp','hr','carry','note'])$('#f-'+k).value=w[k]??'';$('#dlg').showModal();$('#f-title').focus()}
+ for(const k of['title','area','user','date','mp','hr','carry','note','doneDate'])$('#f-'+k).value=w[k]??'';$('#dlg').showModal();$('#f-title').focus()}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const id=b.closest('.card')?.dataset.id,a=b.dataset.act;
  if(a=='new')open_(null);else if(a=='cancel')$('#dlg').close();
  else if(a=='save'){const v=k=>$('#f-'+k).value.trim();if(!v('title')){$('#f-title').focus();return}
-  const o={title:v('title'),area:v('area'),user:v('user'),date:v('date')||today,mp:v('mp'),hr:v('hr'),carry:v('carry'),note:v('note')};
+  const o={title:v('title'),area:v('area'),user:v('user'),date:v('date')||today,mp:v('mp'),hr:v('hr'),carry:v('carry'),note:v('note'),doneDate:v('doneDate')};if(o.doneDate)o.status='selesai';
   if(eid)Object.assign(D.wos.find(x=>x.id==eid),o);else D.wos.push({id:Math.random().toString(36).slice(2,9),status:'baru',doneDate:'',...o});
   M=o.date.slice(0,7);save();$('#dlg').close();view()}
- else if(a=='ed')open_(id);else if(a=='go')location.href='index.html';else if(a=='clr'){SEL.clear();view()}else if(a=='mkboq'||a=='mkjc')hand(a=='mkjc'?'jc':'boq');
+ else if(a=='ed')open_(id);else if(a=='done')move(id,'selesai');else if(a=='go')location.href='index.html';else if(a=='clr'){SEL.clear();view()}else if(a=='mkboq'||a=='mkjc')hand(a=='mkjc'?'jc':'boq');
  else if(a=='del'){if(confirm('Hapus work order ini?')){D.wos=D.wos.filter(x=>x.id!=id);save();view()}}
  else if(a=='mv'){const w=D.wos.find(x=>x.id==id);move(id,ST[ST.findIndex(s=>s[0]==w.status)+ +b.dataset.d][0])}
  else if(a=='exp'){const l=document.createElement('a');l.href=URL.createObjectURL(new Blob([JSON.stringify(D)],{type:'application/json'}));l.download='backup-work-order.json';l.click()}
